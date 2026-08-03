@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#123128">
+<title>لوحة مهام السكرتارية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#EEF0EA;
+    --paper:#F7F8F4;
+    --surface:#FFFFFF;
+    --ink:#182620;
+    --muted:#6B7A70;
+    --line:#DEE3D9;
+    --primary:#123128;
+    --primary-2:#1F5142;
+    --gold:#A9843B;
+    --gold-soft:#F1E7D2;
+    --bloc:#8A6A2A;
+    --bloc-soft:#F3E9D3;
+    --finance:#1F5142;
+    --finance-soft:#DEEAE3;
+    --office:#2C4A7C;
+    --office-soft:#E1E7F1;
+    --danger:#A6392C;
+    --danger-soft:#FBEAE6;
+    --reminder:#B8791E;
+    --reminder-soft:#FBF0DD;
+    --ok:#2C6E49;
+    --radius:18px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:'Tajawal',sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; justify-content:center;
+  }
+  h1,h2,h3,.disp{font-family:'Cairo',sans-serif;}
+  #app{ width:100%; max-width:480px; min-height:100vh; background:var(--bg); position:relative; display:flex; flex-direction:column; }
+
+  /* ===== Login ===== */
+  .login-wrap{ min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:28px 26px calc(28px + var(--safe-b)); background:linear-gradient(160deg,var(--primary) 0%, #0C221B 100%); }
+  .login-seal{ width:70px;height:70px;border-radius:50%; margin:0 auto 18px; background:radial-gradient(circle at 35% 30%, #2b5c48, var(--primary)); border:2px solid var(--gold); display:flex;align-items:center;justify-content:center; }
+  .login-seal svg{width:36px;height:36px;}
+  .login-seal img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
+  .login-title{ text-align:center; color:#fff; margin-bottom:26px; }
+  .login-title h1{font-size:19px;margin:0 0 6px;font-weight:800;}
+  .login-title span{font-size:12px;color:#CFE4DA;}
+  .login-card{ background:var(--surface); border-radius:20px; padding:22px; }
+  .login-card .field{margin-bottom:13px;}
+  .login-card label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+  .login-card input{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 13px;font-family:'Tajawal';font-size:14px;background:var(--paper);}
+  .login-err{ background:var(--danger-soft); color:var(--danger); font-size:12px; font-weight:700; padding:9px 12px; border-radius:10px; margin-bottom:12px; display:none; }
+  .login-err.show{display:block;}
+  .login-btn{ width:100%; background:var(--primary); color:#fff; border:none; border-radius:13px; padding:13px; font-family:'Tajawal'; font-size:14px; font-weight:800; cursor:pointer; margin-top:4px; }
+  .login-hint{ text-align:center; color:#CFE4DA; font-size:11px; margin-top:16px; line-height:1.7; }
+
+  /* ===== Top bar ===== */
+  .topbar{ position:sticky; top:0; z-index:30; background:var(--primary); color:#fff; padding:calc(14px + var(--safe-t)) 18px 16px; border-radius:0 0 22px 22px; box-shadow:0 6px 18px rgba(18,49,40,.18); }
+  .topbar-row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .seal{ width:42px;height:42px;border-radius:50%; background:radial-gradient(circle at 35% 30%, #2b5c48, var(--primary)); border:2px solid var(--gold); display:flex;align-items:center;justify-content:center; flex-shrink:0; overflow:hidden; }
+  .seal svg{width:22px;height:22px;}
+  .seal img{width:100%;height:100%;object-fit:cover;}
+  .topbar-title{display:flex; align-items:center; gap:10px; min-width:0;}
+  .topbar-title .txt{min-width:0;}
+  .topbar-title .txt h1{font-size:15px;margin:0;font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .topbar-title .txt span{font-size:11px;color:#CFE4DA;font-weight:500;}
+  .icon-btns{display:flex; gap:8px; flex-shrink:0;}
+  .icon-btn{ position:relative; width:38px;height:38px;border-radius:50%; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); display:flex;align-items:center;justify-content:center; color:#fff; cursor:pointer; }
+  .icon-btn svg{width:17px;height:17px;}
+  .badge-count{ position:absolute; top:-4px; left:-4px; background:var(--danger); color:#fff; font-size:10px; font-weight:800; min-width:17px; height:17px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid var(--primary); }
+  .stat-strip{ display:flex; gap:8px; margin-top:16px; }
+  .stat-chip{ flex:1; background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.14); border-radius:13px; padding:8px 6px; text-align:center; }
+  .stat-chip b{display:block; font-size:15px; font-family:'Cairo'; font-weight:800;}
+  .stat-chip span{font-size:9.5px; color:#CFE4DA;}
+
+  /* ===== Content ===== */
+  .content{flex:1; padding:16px 16px calc(100px + var(--safe-b)); }
+  .content.no-nav{padding-bottom:calc(30px + var(--safe-b));}
+  .section-title{ display:flex; align-items:center; justify-content:space-between; margin:4px 2px 10px; }
+  .section-title h2{font-size:15px; margin:0; font-weight:800; color:var(--primary);}
+  .section-title small{color:var(--muted); font-size:11.5px;}
+
+  .alert-banner{ background:var(--danger-soft); border:1px solid #EFC9C0; color:var(--danger); border-radius:14px; padding:12px 14px; display:flex; align-items:center; gap:10px; margin-bottom:14px; font-size:13px; font-weight:700; }
+  .alert-banner.reminder{background:var(--reminder-soft); border-color:#EBD3A2; color:var(--reminder);}
+  .alert-banner svg{width:18px;height:18px; flex-shrink:0;}
+
+  /* ===== Task card ===== */
+  .task-card{ background:var(--surface); border-radius:var(--radius); padding:13px 14px; margin-bottom:10px; display:flex; gap:11px; align-items:flex-start; border:1px solid var(--line); position:relative; overflow:hidden; }
+  .task-card::before{ content:''; position:absolute; right:0; top:0; bottom:0; width:5px; }
+  .task-card.cat-finance::before{background:var(--finance);}
+  .task-card.cat-bloc::before{background:var(--bloc);}
+  .task-card.cat-office::before{background:var(--office);}
+  .check-btn{ width:24px;height:24px;border-radius:50%; border:2px solid var(--line); background:#fff; flex-shrink:0; margin-top:2px; cursor:pointer; display:flex;align-items:center;justify-content:center; padding:0; }
+  .check-btn.done{background:var(--ok); border-color:var(--ok);}
+  .check-btn svg{width:13px;height:13px; color:#fff; display:none;}
+  .check-btn.done svg{display:block;}
+  .task-body{flex:1; min-width:0;}
+  .task-top{display:flex; align-items:flex-start; justify-content:space-between; gap:8px;}
+  .task-title{font-size:14px; font-weight:700; margin:0; line-height:1.4;}
+  .task-top .task-title{flex:1; min-width:0;}
+  .mark-pill{ flex-shrink:0; border:1.5px solid var(--ok); color:var(--ok); background:#fff; border-radius:20px; padding:5px 11px; font-family:'Tajawal'; font-size:10.5px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .mark-pill svg{width:11px;height:11px;}
+  .mark-pill.done{background:var(--ok); color:#fff;}
+  .task-title.done{text-decoration:line-through; color:var(--muted);}
+  .task-desc{font-size:12.5px; color:var(--muted); margin:4px 0 8px; line-height:1.5;}
+  .task-meta{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+  .tag{ font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; }
+  .tag.finance{background:var(--finance-soft); color:var(--finance);}
+  .tag.bloc{background:var(--bloc-soft); color:var(--bloc);}
+  .tag.office{background:var(--office-soft); color:var(--office);}
+  .tag.emp{background:#EEF0EA; color:var(--muted); font-weight:500;}
+  .tag.overdue{background:var(--danger-soft); color:var(--danger);}
+  .tag.remind{background:var(--reminder-soft); color:var(--reminder);}
+  .tag.time{background:#F0F2ED; color:var(--muted); font-weight:500;}
+  .tag.attach{background:#EEF0EA; color:var(--primary); text-decoration:none; display:inline-flex; align-items:center; gap:4px;}
+  .tag.attach svg{width:11px;height:11px;}
+
+  .empty-state{text-align:center; padding:50px 20px; color:var(--muted);}
+  .empty-state .ico{ width:56px;height:56px;border-radius:50%;background:var(--surface); display:flex;align-items:center;justify-content:center;margin:0 auto 14px; border:1px solid var(--line); }
+  .empty-state .ico svg{width:26px;height:26px; color:var(--gold);}
+  .empty-state p{font-size:13px; margin:0; max-width:230px; margin:0 auto; line-height:1.6;}
+
+  .file-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:9px; display:flex; align-items:center; gap:10px; }
+  .file-ico{ width:36px;height:36px;border-radius:10px; background:var(--office-soft); color:var(--office); display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+  .file-ico svg{width:17px;height:17px;}
+  .file-info{flex:1; min-width:0;}
+  .file-info p{margin:0; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .file-info span{font-size:10.5px; color:var(--muted);}
+  .file-dl{ width:34px;height:34px;border-radius:50%; background:var(--primary); color:#fff; display:flex;align-items:center;justify-content:center; flex-shrink:0; text-decoration:none; }
+  .file-dl svg{width:15px;height:15px;}
+
+  .agenda-filters{display:flex; gap:8px; margin-bottom:14px;}
+  .agenda-filter-btn{ flex:1; border:1.5px solid var(--line); background:var(--surface); border-radius:12px; padding:9px 4px; font-family:'Tajawal'; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
+  .agenda-filter-btn.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .agenda-date-head{ display:flex; justify-content:space-between; align-items:center; margin:18px 2px 9px; font-family:'Cairo'; font-weight:800; font-size:12.5px; color:var(--primary); }
+  .agenda-date-head.is-today{color:var(--gold);}
+  .agenda-item{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-bottom:10px; display:flex; gap:12px; align-items:flex-start; }
+  .agenda-time{ font-family:'Cairo'; font-weight:800; font-size:13px; color:var(--primary); background:var(--gold-soft); border-radius:10px; padding:6px 9px; flex-shrink:0; min-width:52px; text-align:center; }
+  .agenda-body{flex:1; min-width:0;}
+  .agenda-del{ background:none; border:none; color:var(--danger); flex-shrink:0; cursor:pointer; padding:4px; }
+  .agenda-del svg{width:16px;height:16px;}
+
+  /* ===== Employee card ===== */
+  .emp-card{ background:var(--surface); border-radius:var(--radius); border:1px solid var(--line); margin-bottom:10px; overflow:hidden; }
+  .emp-head{ display:flex; align-items:center; gap:11px; padding:13px 14px; cursor:pointer; }
+  .avatar{ width:40px;height:40px;border-radius:50%; background:var(--gold-soft); color:var(--gold); display:flex;align-items:center;justify-content:center; font-weight:800; font-family:'Cairo'; font-size:15px; flex-shrink:0; }
+  .emp-info{flex:1; min-width:0;}
+  .emp-info h3{margin:0; font-size:14px; font-weight:700;}
+  .emp-info span{font-size:11.5px; color:var(--muted);}
+  .emp-counts{display:flex; gap:6px; flex-shrink:0;}
+  .count-pill{font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#EEF0EA; color:var(--muted);}
+  .count-pill.warn{background:var(--danger-soft); color:var(--danger);}
+  .chevron{width:16px;height:16px; color:var(--muted); transition:transform .2s;}
+  .emp-card.open .chevron{transform:rotate(180deg);}
+  .emp-tasks{display:none; padding:0 14px 14px;}
+  .emp-card.open .emp-tasks{display:block;}
+  .cred-box{ background:var(--paper); border:1px dashed var(--line); border-radius:12px; padding:10px 12px; margin-bottom:12px; font-size:12px; }
+  .cred-row{display:flex; justify-content:space-between; align-items:center; padding:3px 0;}
+  .cred-row b{color:var(--muted); font-weight:600;}
+  .cred-row code{font-family:monospace; font-size:12.5px; background:#fff; border:1px solid var(--line); padding:2px 8px; border-radius:6px;}
+  .row-actions{display:flex; gap:8px; margin-top:8px;}
+  .row-actions button{ flex:1; background:none; border:1px solid var(--line); border-radius:9px; color:var(--muted); font-size:11px; font-weight:700; padding:7px; cursor:pointer; font-family:'Tajawal'; }
+  .row-actions button.danger{color:var(--danger); border-color:#EFC9C0;}
+
+  /* ===== Reports tab ===== */
+  .report-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .report-card h3{font-size:13.5px; margin:0 0 4px; font-weight:800;}
+  .report-card p{font-size:11.5px; color:var(--muted); margin:0 0 12px;}
+  .report-card select{width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-family:'Tajawal'; font-size:12.5px; margin-bottom:10px; background:var(--paper);}
+  .export-btn{ width:100%; background:var(--primary); color:#fff; border:none; border-radius:11px; padding:11px; font-family:'Tajawal'; font-size:12.5px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .export-btn svg{width:15px;height:15px;}
+
+  /* ===== Bottom nav ===== */
+  .bottomnav{ position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:var(--surface); border-top:1px solid var(--line); display:flex; padding:9px 8px calc(9px + var(--safe-b)); z-index:40; }
+  .nav-btn{ flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--muted); font-family:'Tajawal'; font-size:10px; font-weight:700; padding:4px 0; cursor:pointer; }
+  .nav-btn svg{width:20px;height:20px;}
+  .nav-btn.active{color:var(--primary);}
+  .nav-btn .dot{width:5px;height:5px;border-radius:50%; background:var(--primary); margin-top:-1px; opacity:0;}
+  .nav-btn.active .dot{opacity:1;}
+
+  .fab{ position:fixed; bottom:calc(78px + var(--safe-b)); left:50%; transform:translateX(calc(-50% + 190px)); width:54px;height:54px;border-radius:50%; background:var(--gold); color:#fff; border:none; display:flex;align-items:center;justify-content:center; box-shadow:0 8px 18px rgba(169,132,59,.4); z-index:35; cursor:pointer; }
+  .fab.no-nav{bottom:calc(24px + var(--safe-b));}
+  .fab svg{width:24px;height:24px;}
+
+  /* ===== Sheet / modal ===== */
+  .overlay{ position:fixed; inset:0; background:rgba(10,20,15,.45); z-index:50; display:none; justify-content:center; }
+  .overlay.show{display:flex;}
+  .sheet{ width:100%; max-width:480px; background:var(--paper); align-self:flex-end; border-radius:24px 24px 0 0; padding:8px 20px calc(24px + var(--safe-b)); max-height:88vh; overflow-y:auto; animation:slideup .25s ease; }
+  @keyframes slideup{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet-handle{width:38px;height:4px;background:var(--line); border-radius:3px; margin:8px auto 14px;}
+  .sheet h2{font-size:16px; margin:0 0 16px; font-weight:800; color:var(--primary);}
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px;}
+  .field input, .field textarea, .field select{ width:100%; border:1px solid var(--line); background:var(--surface); border-radius:12px; padding:11px 13px; font-family:'Tajawal'; font-size:13.5px; color:var(--ink); }
+  .field textarea{resize:vertical; min-height:64px;}
+  .field select{appearance:none; background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%236B7A70" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position:left 12px center; background-size:16px;}
+  .field-sub{font-size:10.5px; color:var(--muted); margin-top:5px;}
+  .cat-toggle{display:flex; gap:6px;}
+  .cat-opt{ flex:1; border:1.5px solid var(--line); border-radius:12px; padding:9px 4px; text-align:center; font-size:11.5px; font-weight:700; cursor:pointer; color:var(--muted); }
+  .cat-opt.sel-finance{border-color:var(--finance); background:var(--finance-soft); color:var(--finance);}
+  .cat-opt.sel-bloc{border-color:var(--bloc); background:var(--bloc-soft); color:var(--bloc);}
+  .cat-opt.sel-office{border-color:var(--office); background:var(--office-soft); color:var(--office);}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px;}
+  .btn{ flex:1; border:none; border-radius:13px; padding:13px; font-family:'Tajawal'; font-size:13.5px; font-weight:800; cursor:pointer; }
+  .btn-primary{background:var(--primary); color:#fff;}
+  .btn-ghost{background:var(--surface); color:var(--muted); border:1px solid var(--line);}
+  .logo-preview{ width:80px;height:80px;border-radius:50%; margin:0 auto 14px; border:2px dashed var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--surface); }
+  .logo-preview img{width:100%;height:100%;object-fit:cover;}
+  .logo-preview svg{width:26px;height:26px;color:var(--muted);}
+  .file-btn{ display:block; text-align:center; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px; font-size:12.5px; font-weight:700; color:var(--primary); cursor:pointer; margin-bottom:14px; }
+  .divider{height:1px; background:var(--line); margin:18px 0;}
+
+  .loading{display:flex; align-items:center; justify-content:center; min-height:60vh; color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="root"></div>
+  <div class="overlay" id="overlay"></div>
+</div>
+
+<script>
+(function(){
+  const CATS = {
+    finance: { label:'اللجنة المالية', short:'مالية' },
+    bloc:    { label:'كتلة الصادقون النيابية', short:'الصادقون' },
+    office:  { label:'مكتب النائب', short:'مكتب النائب' }
+  };
+  const AGENDA_TYPES = { appointment:'موعد', meeting:'اجتماع', session:'جلسة', other:'أخرى' };
+  const DAY_NAMES = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const ADMIN_DEFAULT = { id:'admin', username:'admin', password:'admin123', role:'admin', name:'مدير النظام' };
+
+  /* ===== إعداد Firebase =====
+     الصق بيانات مشروعك من Firebase هنا (Project Settings > Your apps > SDK setup and configuration) */
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBo4VHzGiDdwuQQtuv_s7zKVlUglOAqMIw",
+    authDomain: "secretariat-tasks.firebaseapp.com",
+    projectId: "secretariat-tasks",
+    storageBucket: "secretariat-tasks.firebasestorage.app",
+    messagingSenderId: "1002491199089",
+    appId: "1:1002491199089:web:a73a96eb7428c75b0a25d0"
+  };
+  const FIREBASE_READY = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('PASTE_')!==0;
+  let db = null;
+  const loadFlags = { tasks:false, employees:false, accounts:false, agenda:false, logo:false };
+
+  let state = {
+    tasks: [], employees: [], accounts: [], agenda: [], logo: null,
+    loaded:false, tab:'home', openEmp:null, session:null, loginError:'', agendaFilter:'upcoming', connError:false
+  };
+
+  const ICONS = {
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>',
+    users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 3-6.2 6.5-6.2s6.5 2.6 6.5 6.2"/><circle cx="17.5" cy="8.5" r="2.6"/><path d="M15.7 14c2.7.4 4.8 2.6 4.8 6"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+    chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+    seal: '<svg viewBox="0 0 24 24" fill="none" stroke="#EBD9AE" stroke-width="1.6"><path d="M12 3l2.2 1.6 2.6-.5.9 2.5 2.5.9-.5 2.6L21 12l-1.6 2.2.5 2.6-2.5.9-.9 2.5-2.6-.5L12 21l-2.2-1.6-2.6.5-.9-2.5-2.5-.9.5-2.6L3 12l1.6-2.2-.5-2.6 2.5-.9.9-2.5 2.6.5z"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l2 6v7a1 1 0 01-1 1H4.5a1 1 0 01-1-1v-7z"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="16.5" r=".4" fill="currentColor"/><path d="M10.3 3.9L2.8 17.2A1.6 1.6 0 004.2 19.6h15.6a1.6 1.6 0 001.4-2.4L13.7 3.9a1.6 1.6 0 00-2.8 0z"/></svg>',
+    logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+    gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>',
+    reports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>',
+    attach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1L12.5 20a4.5 4.5 0 01-6.4-6.4l9-9a3 3 0 014.2 4.2l-9 9a1.5 1.5 0 01-2.1-2.1l8.3-8.3"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg>'
+  };
+
+  const root = document.getElementById('root');
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  const now = () => Date.now();
+  const hoursSince = (ts) => (now() - ts) / 3600000;
+  const escapeHTML = (s) => (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function genUsername(name){
+    const base = 'user' + Math.floor(1000 + Math.random()*9000);
+    return base;
+  }
+  function genPassword(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let p='';
+    for(let i=0;i<8;i++) p += chars[Math.floor(Math.random()*chars.length)];
+    return p;
+  }
+
+  /* ===== Firebase / Firestore ===== */
+  function col(name){ return db.collection('secretariat_'+name); }
+
+  function safeRender(){
+    const active = document.activeElement;
+    if (active && root.contains(active) && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) return;
+    render();
+  }
+
+  function checkAllLoaded(){
+    if (state.loaded) return;
+    if (!Object.values(loadFlags).every(Boolean)) return;
+    state.loaded = true;
+    if (!state.accounts.length){
+      state.accounts = [ADMIN_DEFAULT];
+      col('accounts').doc(ADMIN_DEFAULT.id).set(ADMIN_DEFAULT).catch(e=>console.error(e));
+    }
+    render();
+  }
+
+  function onCollUpdate(key){
+    return (snap)=>{
+      state[key] = snap.docs.map(d=>d.data());
+      loadFlags[key] = true;
+      if (!state.loaded) checkAllLoaded(); else {
+        if (key==='accounts' && state.session){
+          const upd = state.accounts.find(a=>a.id===state.session.id);
+          if (upd) state.session = upd;
+        }
+        safeRender();
+      }
+    };
+  }
+
+  function initFirebase(){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+    }catch(e){
+      console.error(e); state.connError = true; render(); return;
+    }
+    const onErr = ()=>{ state.connError = true; render(); };
+    col('tasks').onSnapshot(onCollUpdate('tasks'), onErr);
+    col('employees').onSnapshot(onCollUpdate('employees'), onErr);
+    col('accounts').onSnapshot(onCollUpdate('accounts'), onErr);
+    col('agenda').onSnapshot(onCollUpdate('agenda'), onErr);
+    col('meta').doc('config').onSnapshot(doc=>{
+      state.logo = doc.exists ? (doc.data().logo || null) : null;
+      loadFlags.logo = true;
+      if (!state.loaded) checkAllLoaded(); else safeRender();
+    }, onErr);
+  }
+
+  /* ===== Derived ===== */
+  function myTasks(){
+    if (state.session.role==='admin') return state.tasks;
+    return state.tasks.filter(t=>t.employeeId===state.session.employeeId);
+  }
+  function isOverdue48(t){ return !t.completed && hoursSince(t.createdAt) >= 48; }
+  function overdueTasks(){ return state.tasks.filter(isOverdue48).sort((a,b)=>a.createdAt-b.createdAt); }
+  function activeTasksOf(list){ return list.filter(t=>!t.completed).sort((a,b)=>b.createdAt-a.createdAt); }
+  function remindDays(t){ return Math.floor(hoursSince(t.createdAt)/24); }
+
+  function todayStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function nowTimeStr(){
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  function dayNameOf(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    return DAY_NAMES[d.getDay()];
+  }
+  function formatDateArabic(dateStr){
+    const [y,m,day] = dateStr.split('-');
+    return `${day}/${m}/${y}`;
+  }
+  function agendaVisible(){
+    const t = todayStr();
+    let list = state.agenda.slice();
+    if (state.agendaFilter==='today') list = list.filter(a=>a.date===t);
+    else if (state.agendaFilter==='upcoming') list = list.filter(a=>a.date>=t);
+    return list.sort((a,b)=> a.date===b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date));
+  }
+
+  function timeLabelAdmin(t){
+    if (t.completed) return null;
+    const h = hoursSince(t.createdAt);
+    if (h>=48){ const d=Math.floor(h/24); return {cls:'overdue', text:`متأخرة ${d>=1? d+' يوم' : Math.floor(h)+' ساعة'}`}; }
+    const remain = 48-h;
+    return {cls:'time', text: remain<1 ? `متبقٍ ${Math.round(remain*60)} د` : `متبقٍ ${Math.floor(remain)} س`};
+  }
+  function timeLabelEmployee(t){
+    if (t.completed) return null;
+    const d = remindDays(t);
+    if (d>=1) return {cls:'remind', text:`تذكير: مرّ ${d} ${d===1?'يوم':'أيام'} دون إنجاز`};
+    const h = hoursSince(t.createdAt);
+    const remain = 24-h;
+    return {cls:'time', text: `متبقٍ ${Math.max(0,Math.floor(remain))} س حتى التذكير`};
+  }
+
+  /* ===== Excel export ===== */
+  function taskExcelRow(t){
+    const emp = state.employees.find(e=>e.id===t.employeeId);
+    return {
+      'العنوان': t.title,
+      'الوصف': t.desc || '',
+      'الجهة': CATS[t.category] ? CATS[t.category].label : t.category,
+      'الموظف المكلف': emp ? emp.name : 'غير محدد',
+      'تاريخ الإضافة': new Date(t.createdAt).toLocaleString('ar-IQ'),
+      'الحالة': t.completed ? 'مُنجزة' : (isOverdue48(t) ? 'غير مكتملة (متأخرة)' : 'قيد الإنجاز'),
+      'تاريخ الإنجاز': t.completedAt ? new Date(t.completedAt).toLocaleString('ar-IQ') : '',
+      'الملف المرفق': t.attachment ? t.attachment.name : ''
+    };
+  }
+  function addStatusSheet(wb, tasks, sheetName){
+    const rows = tasks.map(taskExcelRow);
+    if (!rows.length) rows.push({'العنوان':'لا توجد مهام ضمن هذه الحالة','الوصف':'','الجهة':'','الموظف المكلف':'','تاريخ الإضافة':'','الحالة':'','تاريخ الإنجاز':'','الملف المرفق':''});
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:28},{wch:34},{wch:20},{wch:20},{wch:20},{wch:20},{wch:20},{wch:24}];
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+  function exportTasksExcel(tasks, filename){
+    const completed = tasks.filter(t=>t.completed);
+    const overdue = tasks.filter(t=>!t.completed && isOverdue48(t));
+    const inProgress = tasks.filter(t=>!t.completed && !isOverdue48(t));
+    const wb = XLSX.utils.book_new();
+    addStatusSheet(wb, tasks, 'الكل');
+    addStatusSheet(wb, completed, 'مكتملة');
+    addStatusSheet(wb, inProgress, 'قيد الإنجاز');
+    addStatusSheet(wb, overdue, 'غير مكتملة (متأخرة)');
+    XLSX.writeFile(wb, filename);
+  }
+
+  /* ===== Rendering ===== */
+  function taskCardHTML(t, ctxRole){
+    const emp = state.employees.find(e=>e.id===t.employeeId);
+    const tl = ctxRole==='employee' ? timeLabelEmployee(t) : timeLabelAdmin(t);
+    return `
+    <div class="task-card cat-${t.category}">
+      <div class="task-body">
+        <div class="task-top">
+          <p class="task-title ${t.completed?'done':''}">${escapeHTML(t.title)}</p>
+          <button class="mark-pill ${t.completed?'done':''}" data-action="toggle" data-id="${t.id}">
+            ${t.completed ? ICONS.check+'<span>مكتملة</span>' : '<span>تحديد كمكتملة</span>'}
+          </button>
+        </div>
+        ${t.desc ? `<p class="task-desc">${escapeHTML(t.desc)}</p>` : ''}
+        <div class="task-meta">
+          <span class="tag ${t.category}">${CATS[t.category].short}</span>
+          ${(ctxRole!=='employee' && emp) ? `<span class="tag emp">${escapeHTML(emp.name)}</span>` : ''}
+          ${tl ? `<span class="tag ${tl.cls}">${tl.text}</span>` : ''}
+          ${t.attachment ? `<a class="tag attach" href="${t.attachment.dataUrl}" download="${escapeHTML(t.attachment.name)}">${ICONS.attach}${escapeHTML(t.attachment.name.length>16 ? t.attachment.name.slice(0,13)+'…' : t.attachment.name)}</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+  function attachmentCardHTML(t){
+    const a = t.attachment;
+    const sizeKb = a.size ? Math.round(a.size/1024) : null;
+    return `
+    <div class="file-card">
+      <div class="file-ico">${ICONS.attach}</div>
+      <div class="file-info">
+        <p>${escapeHTML(a.name)}</p>
+        <span>مرفق بمهمة: ${escapeHTML(t.title)}${sizeKb?` · ${sizeKb} ك.ب`:''}</span>
+      </div>
+      <a class="file-dl" href="${a.dataUrl}" download="${escapeHTML(a.name)}" title="تحميل الملف">${ICONS.download}</a>
+    </div>`;
+  }
+  function emptyState(icon, text){
+    return `<div class="empty-state"><div class="ico">${ICONS[icon]}</div><p>${text}</p></div>`;
+  }
+  function sealHTML(){
+    return state.logo ? `<img src="${state.logo}" alt="شعار">` : ICONS.seal;
+  }
+
+  function renderTopbar(){
+    const isAdmin = state.session.role==='admin';
+    const list = isAdmin ? state.tasks : myTasks();
+    const pending = activeTasksOf(list).length;
+    const over = isAdmin ? overdueTasks().length : list.filter(t=>!t.completed && remindDays(t)>=1).length;
+    return `
+    <div class="topbar">
+      <div class="topbar-row">
+        <div class="topbar-title">
+          <div class="seal">${sealHTML()}</div>
+          <div class="txt">
+            <h1>لوحة مهام السكرتارية</h1>
+            <span>${escapeHTML(state.session.name)} · ${isAdmin?'مدير النظام':'حساب موظف'}</span>
+          </div>
+        </div>
+        <div class="icon-btns">
+          <button class="icon-btn" data-action="goto" data-tab="settings">${ICONS.gear}</button>
+          <div class="icon-btn" style="position:relative">
+            <button class="icon-btn" style="background:none;border:none;position:absolute;inset:0;width:100%;height:100%" data-action="goto" data-tab="${isAdmin?'alerts':'home'}">${ICONS.bell}</button>
+            ${over>0 ? `<span class="badge-count">${over}</span>` : ''}
+          </div>
+          <button class="icon-btn" data-action="logout">${ICONS.logout}</button>
+        </div>
+      </div>
+      <div class="stat-strip">
+        <div class="stat-chip"><b>${list.length}</b><span>إجمالي المهام</span></div>
+        <div class="stat-chip"><b>${pending}</b><span>قيد الإنجاز</span></div>
+        <div class="stat-chip"><b>${over}</b><span>${isAdmin?'متأخرة':'تذكير مستحق'}</span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderHome(){
+    const isAdmin = state.session.role==='admin';
+    const list = activeTasksOf(isAdmin ? state.tasks : myTasks());
+    let html = `<div class="section-title"><h2>${isAdmin?'المهام النشطة':'مهامي'}</h2><small>${list.length} مهمة</small></div>`;
+    if (!isAdmin){
+      const remindCount = list.filter(t=>remindDays(t)>=1).length;
+      if (remindCount) html += `<div class="alert-banner reminder">${ICONS.warn}<span>لديك ${remindCount} ${remindCount===1?'مهمة':'مهام'} تجاوزت 24 ساعة دون إنجاز — تذكير مستحق</span></div>`;
+      html += `<button class="export-btn" style="margin-bottom:14px" data-action="exportMine">${ICONS.download} تصدير تقرير مهامي (Excel)</button>`;
+    } else {
+      const over = overdueTasks().length;
+      if (over) html += `<div class="alert-banner">${ICONS.warn}<span>لديك ${over} ${over===1?'مهمة متأخرة':'مهام متأخرة'} تجاوزت 48 ساعة دون إنجاز</span></div>`;
+    }
+    if (!list.length){
+      html += emptyState('inbox', isAdmin ? 'لا توجد مهام نشطة حالياً. اضغط زر الإضافة لتسجيل مهمة جديدة.' : 'لا توجد مهام مسندة إليك حالياً.');
+    } else {
+      html += list.map(t=>taskCardHTML(t, isAdmin?'admin':'employee')).join('');
+    }
+    if (!isAdmin){
+      const filesTasks = myTasks().filter(t=>t.attachment);
+      if (filesTasks.length){
+        html += `<div class="section-title" style="margin-top:20px"><h2>الملفات المرفقة بمهامي</h2><small>${filesTasks.length} ملف</small></div>`;
+        html += filesTasks.map(t=>attachmentCardHTML(t)).join('');
+      }
+    }
+    return html;
+  }
+
+  function renderAlerts(){
+    const over = overdueTasks();
+    let html = `<div class="section-title"><h2>المهام المتأخرة (+48 ساعة)</h2><small>${over.length} مهمة</small></div>`;
+    html += !over.length ? emptyState('bell','لا توجد مهام متأخرة حالياً.') : over.map(t=>taskCardHTML(t,'admin')).join('');
+    return html;
+  }
+
+  function renderEmployees(){
+    let html = `<div class="section-title"><h2>الموظفون</h2><small>${state.employees.length} موظف</small></div>`;
+    if (!state.employees.length){
+      html += emptyState('users','لا يوجد موظفون مسجلون بعد. أضف موظفاً لتوزيع المهام عليه وإنشاء حسابه.');
+    } else {
+      html += state.employees.map(e=>{
+        const tasks = state.tasks.filter(t=>t.employeeId===e.id);
+        const pending = tasks.filter(t=>!t.completed).length;
+        const over = tasks.filter(isOverdue48).length;
+        const open = state.openEmp === e.id;
+        const acc = state.accounts.find(a=>a.employeeId===e.id);
+        return `
+        <div class="emp-card ${open?'open':''}">
+          <div class="emp-head" data-action="toggleEmp" data-id="${e.id}">
+            <div class="avatar">${escapeHTML((e.name||'?').trim().slice(0,1))}</div>
+            <div class="emp-info"><h3>${escapeHTML(e.name)}</h3><span>${escapeHTML(e.role||'موظف')}</span></div>
+            <div class="emp-counts">
+              <span class="count-pill">${pending} نشطة</span>
+              ${over>0?`<span class="count-pill warn">${over} متأخرة</span>`:''}
+            </div>
+            <span class="chevron">${ICONS.chev}</span>
+          </div>
+          <div class="emp-tasks">
+            ${acc ? `
+            <div class="cred-box">
+              <div class="cred-row"><b>اسم المستخدم</b><code>${escapeHTML(acc.username)}</code></div>
+              <div class="cred-row"><b>كلمة المرور</b><code>${escapeHTML(acc.password)}</code></div>
+              <div class="row-actions">
+                <button data-action="resetPass" data-id="${e.id}">${ICONS.refresh} إعادة تعيين</button>
+                <button data-action="exportEmp" data-id="${e.id}">${ICONS.download} تصدير Excel</button>
+              </div>
+            </div>` : ''}
+            ${tasks.length ? tasks.slice().sort((a,b)=>b.createdAt-a.createdAt).map(t=>taskCardHTML(t,'admin')).join('') : `<p style="font-size:12px;color:var(--muted);text-align:center;padding:6px 0 12px;">لا توجد مهام مسندة لهذا الموظف</p>`}
+            <div class="row-actions"><button class="danger" data-action="delEmp" data-id="${e.id}">${ICONS.trash} حذف الموظف</button></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    return html;
+  }
+
+  function agendaItemHTML(a){
+    const canDelete = state.session.role==='admin' || a.addedByAccountId===state.session.id;
+    return `
+    <div class="agenda-item">
+      <div class="agenda-time">${escapeHTML(a.time)}</div>
+      <div class="agenda-body">
+        <div class="task-meta" style="margin-bottom:5px;">
+          <span class="tag ${a.category}">${CATS[a.category].short}</span>
+          <span class="tag emp">${AGENDA_TYPES[a.type] || 'أخرى'}</span>
+        </div>
+        <p class="task-title">${escapeHTML(a.title)}</p>
+        ${a.details ? `<p class="task-desc">${escapeHTML(a.details)}</p>` : ''}
+        <span style="font-size:10.5px;color:var(--muted);">أضافها: ${escapeHTML(a.addedByName)}</span>
+      </div>
+      ${canDelete ? `<button class="agenda-del" data-action="delAgenda" data-id="${a.id}">${ICONS.trash}</button>` : ''}
+    </div>`;
+  }
+
+  function renderAgenda(){
+    const filters = [ {id:'today',label:'اليوم'}, {id:'upcoming',label:'القادمة'}, {id:'all',label:'الكل'} ];
+    let html = `<div class="section-title"><h2>الجدول اليومي</h2><small>مواعيد واجتماعات وجلسات</small></div>`;
+    html += `<div class="agenda-filters">${filters.map(f=>`<button class="agenda-filter-btn ${state.agendaFilter===f.id?'active':''}" data-action="agendaFilter" data-f="${f.id}">${f.label}</button>`).join('')}</div>`;
+    const items = agendaVisible();
+    if (!items.length){
+      html += emptyState('calendar','لا توجد مواعيد أو اجتماعات مسجلة ضمن هذا العرض. اضغط زر الإضافة لتسجيل موعد جديد.');
+      return html;
+    }
+    const groups = {};
+    items.forEach(a=>{ (groups[a.date] = groups[a.date] || []).push(a); });
+    const t = todayStr();
+    Object.keys(groups).forEach(date=>{
+      html += `<div class="agenda-date-head ${date===t?'is-today':''}"><span>${dayNameOf(date)}</span><span>${formatDateArabic(date)}${date===t?' · اليوم':''}</span></div>`;
+      html += groups[date].map(agendaItemHTML).join('');
+    });
+    return html;
+  }
+
+  function renderReports(){
+    const catOptions = Object.keys(CATS).map(k=>`<option value="${k}">${CATS[k].label}</option>`).join('');
+    const empOptions = state.employees.map(e=>`<option value="${e.id}">${escapeHTML(e.name)}</option>`).join('');
+    return `
+    <div class="section-title"><h2>التقارير</h2><small>ملفات Excel</small></div>
+    <div class="report-card">
+      <h3>تقرير شامل</h3>
+      <p>تصدير جميع المهام المسجلة في النظام بكل التصنيفات والموظفين.</p>
+      <button class="export-btn" data-action="exportAll">${ICONS.download} تصدير كل المهام</button>
+    </div>
+    <div class="report-card">
+      <h3>تقرير حسب الجهة</h3>
+      <p>اختر الجهة لتصدير مهامها فقط.</p>
+      <select id="rep-cat">${catOptions}</select>
+      <button class="export-btn" data-action="exportCat">${ICONS.download} تصدير حسب الجهة</button>
+    </div>
+    <div class="report-card">
+      ${state.employees.length ? `
+      <h3>تقرير حسب الموظف</h3>
+      <p>اختر موظفاً لتصدير المهام المسندة إليه.</p>
+      <select id="rep-emp">${empOptions}</select>
+      <button class="export-btn" data-action="exportEmpSel">${ICONS.download} تصدير حسب الموظف</button>
+      ` : `<h3>تقرير حسب الموظف</h3><p>لا يوجد موظفون بعد لتصدير تقرير خاص بهم.</p>`}
+    </div>`;
+  }
+
+  function renderSettings(){
+    const isAdmin = state.session.role==='admin';
+    return `
+    <div class="section-title"><h2>الإعدادات</h2></div>
+    ${isAdmin ? `
+    <div class="report-card">
+      <h3>شعار الموقع</h3>
+      <div class="logo-preview">${state.logo ? `<img src="${state.logo}">` : ICONS.users}</div>
+      <label class="file-btn" for="logo-input">اختيار صورة جديدة</label>
+      <input type="file" id="logo-input" accept="image/*" style="display:none">
+      ${state.logo ? `<button class="row-actions" style="width:100%" data-action="removeLogo"><span style="width:100%;text-align:center;color:var(--danger);font-size:11.5px;font-weight:700;cursor:pointer;">إزالة الشعار</span></button>` : ''}
+    </div>` : ''}
+    <div class="report-card">
+      <h3>بيانات حسابي الشخصي</h3>
+      <p>بإمكانك تغيير اسم المستخدم و/أو كلمة المرور الخاصين بحسابك بنفسك.</p>
+      <div class="field"><label>كلمة المرور الحالية (للتأكيد)</label><input type="password" id="cur-pass"></div>
+      <div class="field"><label>اسم المستخدم</label><input type="text" id="new-user" value="${escapeHTML(state.session.username)}"></div>
+      <div class="field"><label>كلمة المرور الجديدة (اتركها فارغة إن لم ترغب بتغييرها)</label><input type="password" id="new-pass"></div>
+      <div id="pass-msg" style="font-size:11.5px;font-weight:700;margin-bottom:8px;"></div>
+      <button class="export-btn" data-action="changeAccount">${ICONS.gear} حفظ التغييرات</button>
+    </div>`;
+  }
+
+  function renderNav(){
+    const isAdmin = state.session.role==='admin';
+    const tabs = isAdmin ? [
+      {id:'home', label:'الرئيسية', icon:'home'},
+      {id:'alerts', label:'المتأخرة', icon:'bell'},
+      {id:'agenda', label:'الجدول اليومي', icon:'calendar'},
+      {id:'employees', label:'الموظفون', icon:'users'},
+      {id:'reports', label:'التقارير', icon:'reports'},
+    ] : [
+      {id:'home', label:'مهامي', icon:'home'},
+      {id:'agenda', label:'الجدول اليومي', icon:'calendar'},
+    ];
+    return `<div class="bottomnav">
+      ${tabs.map(tb=>`<button class="nav-btn ${state.tab===tb.id?'active':''}" data-action="goto" data-tab="${tb.id}">${ICONS[tb.icon]}<span>${tb.label}</span><span class="dot"></span></button>`).join('')}
+    </div>`;
+  }
+
+  function renderSetupNeeded(){
+    return `
+    <div class="login-wrap">
+      <div class="login-seal">${ICONS.seal}</div>
+      <div class="login-title"><h1>لوحة مهام السكرتارية</h1><span>إعداد أولي مطلوب</span></div>
+      <div class="login-card">
+        <p style="font-size:12.5px;color:var(--ink);line-height:1.9;margin:0 0 6px;">
+          لم يتم بعد ربط هذا التطبيق بقاعدة بيانات خارجية (Firebase)، لذلك لا يمكن حفظ أو مزامنة البيانات بين الأجهزة حالياً.
+        </p>
+        <p style="font-size:12.5px;color:var(--muted);line-height:1.9;margin:0;">
+          أرسل بيانات إعداد Firebase الخاصة بمشروعك إلى المساعد ليقوم بربطها بالتطبيق مباشرة.
+        </p>
+      </div>
+    </div>`;
+  }
+
+  function renderConnError(){
+    return `
+    <div class="login-wrap">
+      <div class="login-seal">${ICONS.warn}</div>
+      <div class="login-title"><h1>تعذّر الاتصال بقاعدة البيانات</h1><span>تحقق من الاتصال بالإنترنت أو إعدادات Firebase</span></div>
+      <div class="login-card">
+        <p style="font-size:12.5px;color:var(--ink);line-height:1.9;margin:0 0 14px;">
+          قد يكون السبب ضعف الاتصال بالإنترنت، أو أن قواعد الأمان (Security Rules) في Firestore تمنع القراءة/الكتابة.
+        </p>
+        <button class="login-btn" onclick="location.reload()">إعادة المحاولة</button>
+      </div>
+    </div>`;
+  }
+
+  function renderLogin(){
+    return `
+    <div class="login-wrap">
+      <div class="login-seal">${sealHTML()}</div>
+      <div class="login-title"><h1>لوحة مهام السكرتارية</h1><span>اللجنة المالية · كتلة الصادقون النيابية · مكتب النائب</span></div>
+      <div class="login-card">
+        <div class="login-err ${state.loginError?'show':''}">${escapeHTML(state.loginError||'')}</div>
+        <div class="field"><label>اسم المستخدم</label><input type="text" id="log-user" autocomplete="username"></div>
+        <div class="field"><label>كلمة المرور</label><input type="password" id="log-pass" autocomplete="current-password"></div>
+        <button class="login-btn" data-action="doLogin">تسجيل الدخول</button>
+      </div>
+      <div class="login-hint">الدخول الافتراضي للمدير: admin / admin123 — يرجى تغييره فوراً من الإعدادات بعد الدخول.</div>
+    </div>`;
+  }
+
+  function render(){
+    if (!FIREBASE_READY){ root.innerHTML = renderSetupNeeded(); return; }
+    if (state.connError){ root.innerHTML = renderConnError(); return; }
+    if (!state.loaded){ root.innerHTML = `<div class="loading">جارٍ التحميل...</div>`; return; }
+    if (!state.session){ root.innerHTML = renderLogin(); bindLoginEvents(); return; }
+
+    const isAdmin = state.session.role==='admin';
+    let body = '';
+    if (state.tab==='settings') body = renderSettings();
+    else if (state.tab==='agenda') body = renderAgenda();
+    else if (!isAdmin) body = renderHome();
+    else if (state.tab==='home') body = renderHome();
+    else if (state.tab==='alerts') body = renderAlerts();
+    else if (state.tab==='employees') body = renderEmployees();
+    else if (state.tab==='reports') body = renderReports();
+
+    const showFab = state.tab==='agenda' || (isAdmin && (state.tab==='home' || state.tab==='employees'));
+    root.innerHTML = `
+      ${renderTopbar()}
+      <div class="content">${body}</div>
+      ${showFab ? `<button class="fab" data-action="fab">${ICONS.plus}</button>` : ''}
+      ${renderNav()}
+    `;
+    bindEvents();
+  }
+
+  /* ===== Events ===== */
+  function bindLoginEvents(){
+    const btn = document.querySelector('[data-action="doLogin"]');
+    const attempt = ()=>{
+      const u = document.getElementById('log-user').value.trim();
+      const p = document.getElementById('log-pass').value;
+      const acc = state.accounts.find(a=>a.username===u && a.password===p);
+      if (!acc){ state.loginError = 'اسم المستخدم أو كلمة المرور غير صحيحة'; render(); return; }
+      state.loginError='';
+      state.session = acc;
+      state.tab='home';
+      render();
+    };
+    btn.addEventListener('click', attempt);
+    document.getElementById('log-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') attempt(); });
+  }
+
+  function bindEvents(){
+    root.querySelectorAll('[data-action="goto"]').forEach(el=>{
+      el.addEventListener('click', ()=>{ state.tab = el.dataset.tab; state.openEmp=null; render(); });
+    });
+    const logoutBtn = root.querySelector('[data-action="logout"]');
+    if (logoutBtn) logoutBtn.addEventListener('click', ()=>{ state.session=null; render(); });
+
+    root.querySelectorAll('[data-action="toggle"]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const t = state.tasks.find(x=>x.id===el.dataset.id);
+        if (!t) return;
+        const completed = !t.completed;
+        const completedAt = completed ? now() : null;
+        col('tasks').doc(t.id).update({completed, completedAt}).catch(()=>alert('تعذر حفظ التغيير، تحقق من الاتصال بالإنترنت'));
+      });
+    });
+    root.querySelectorAll('[data-action="toggleEmp"]').forEach(el=>{
+      el.addEventListener('click', ()=>{ state.openEmp = state.openEmp===el.dataset.id ? null : el.dataset.id; render(); });
+    });
+    root.querySelectorAll('[data-action="delEmp"]').forEach(el=>{
+      el.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        if (confirm('هل تريد حذف هذا الموظف؟ سيتم حذف حساب الدخول الخاص به أيضاً.')){
+          const id = el.dataset.id;
+          const acc = state.accounts.find(a=>a.employeeId===id);
+          col('employees').doc(id).delete();
+          if (acc) col('accounts').doc(acc.id).delete();
+          state.tasks.filter(t=>t.employeeId===id).forEach(t=>{ col('tasks').doc(t.id).update({employeeId:null}); });
+        }
+      });
+    });
+    root.querySelectorAll('[data-action="resetPass"]').forEach(el=>{
+      el.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        const acc = state.accounts.find(a=>a.employeeId===el.dataset.id);
+        if (acc) col('accounts').doc(acc.id).update({password: genPassword()}).catch(()=>alert('تعذر الحفظ، تحقق من الاتصال بالإنترنت'));
+      });
+    });
+    root.querySelectorAll('[data-action="exportEmp"]').forEach(el=>{
+      el.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        const e = state.employees.find(x=>x.id===el.dataset.id);
+        const tasks = state.tasks.filter(t=>t.employeeId===el.dataset.id);
+        exportTasksExcel(tasks, `مهام-${e.name}.xlsx`);
+      });
+    });
+    const exportMine = root.querySelector('[data-action="exportMine"]');
+    if (exportMine) exportMine.addEventListener('click', ()=> exportTasksExcel(myTasks(), `تقرير-مهامي-${state.session.name}.xlsx`));
+
+    const exportAll = root.querySelector('[data-action="exportAll"]');
+    if (exportAll) exportAll.addEventListener('click', ()=> exportTasksExcel(state.tasks, 'تقرير-شامل-كل-المهام.xlsx'));
+    const exportCat = root.querySelector('[data-action="exportCat"]');
+    if (exportCat) exportCat.addEventListener('click', ()=>{
+      const cat = document.getElementById('rep-cat').value;
+      exportTasksExcel(state.tasks.filter(t=>t.category===cat), `مهام-${CATS[cat].label}.xlsx`);
+    });
+    const exportEmpSel = root.querySelector('[data-action="exportEmpSel"]');
+    if (exportEmpSel) exportEmpSel.addEventListener('click', ()=>{
+      const empId = document.getElementById('rep-emp').value;
+      const e = state.employees.find(x=>x.id===empId);
+      exportTasksExcel(state.tasks.filter(t=>t.employeeId===empId), `مهام-${e.name}.xlsx`);
+    });
+
+    const logoInput = root.querySelector('#logo-input');
+    if (logoInput) logoInput.addEventListener('change', (e)=>{ if(e.target.files[0]) handleLogoFile(e.target.files[0]); });
+    const removeLogoBtn = root.querySelector('[data-action="removeLogo"]');
+    if (removeLogoBtn) removeLogoBtn.addEventListener('click', ()=>{ col('meta').doc('config').set({logo:''}, {merge:true}); });
+    const changeAccBtn = root.querySelector('[data-action="changeAccount"]');
+    if (changeAccBtn) changeAccBtn.addEventListener('click', ()=>{
+      const cur = document.getElementById('cur-pass').value;
+      const newUser = document.getElementById('new-user').value.trim();
+      const newPass = document.getElementById('new-pass').value;
+      const msg = document.getElementById('pass-msg');
+      const acc = state.accounts.find(a=>a.id===state.session.id);
+      if (cur !== acc.password){ msg.style.color='var(--danger)'; msg.textContent='كلمة المرور الحالية غير صحيحة'; return; }
+      if (!newUser){ msg.style.color='var(--danger)'; msg.textContent='اسم المستخدم لا يمكن أن يكون فارغاً'; return; }
+      if (newUser !== acc.username && state.accounts.some(a=>a.username===newUser)){ msg.style.color='var(--danger)'; msg.textContent='اسم المستخدم هذا مستخدم بالفعل من قِبل حساب آخر'; return; }
+      if (newPass && newPass.length<4){ msg.style.color='var(--danger)'; msg.textContent='كلمة المرور الجديدة قصيرة جداً (٤ أحرف على الأقل)'; return; }
+      const updates = { username: newUser };
+      if (newPass) updates.password = newPass;
+      col('accounts').doc(acc.id).update(updates).then(()=>{
+        document.getElementById('cur-pass').value = '';
+        document.getElementById('new-pass').value = '';
+        msg.style.color='var(--ok)'; msg.textContent='تم حفظ التغييرات بنجاح';
+      }).catch(()=>{ msg.style.color='var(--danger)'; msg.textContent='تعذر الحفظ، تحقق من الاتصال بالإنترنت'; });
+    });
+
+    const fab = root.querySelector('[data-action="fab"]');
+    if (fab) fab.addEventListener('click', ()=> openSheet(state.tab==='agenda' ? 'agenda' : (state.tab==='employees' ? 'employee' : 'task')));
+
+    root.querySelectorAll('[data-action="agendaFilter"]').forEach(el=>{
+      el.addEventListener('click', ()=>{ state.agendaFilter = el.dataset.f; render(); });
+    });
+    root.querySelectorAll('[data-action="delAgenda"]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        if (confirm('هل تريد حذف هذا الموعد من الجدول؟')){
+          col('agenda').doc(el.dataset.id).delete();
+        }
+      });
+    });
+  }
+
+  function handleLogoFile(file){
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxDim = 320;
+        let w = img.width, h = img.height;
+        if (w>h){ if(w>maxDim){h=h*maxDim/w; w=maxDim;} } else { if(h>maxDim){w=w*maxDim/h; h=maxDim;} }
+        const canvas = document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        col('meta').doc('config').set({logo: dataUrl}, {merge:true}).catch(()=>alert('تعذر حفظ الشعار، تحقق من الاتصال بالإنترنت'));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /* ===== Sheets (add task / add employee) ===== */
+  function openSheet(type){
+    const overlay = document.getElementById('overlay');
+    overlay.classList.add('show');
+    overlay.innerHTML = type==='task' ? taskSheetHTML() : (type==='agenda' ? agendaSheetHTML() : empSheetHTML());
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeSheet(); });
+    bindSheetEvents(type);
+  }
+  function closeSheet(){
+    const overlay = document.getElementById('overlay');
+    overlay.classList.remove('show');
+    overlay.innerHTML='';
+  }
+
+  function taskSheetHTML(){
+    const empOptions = state.employees.map(e=>`<option value="${e.id}">${escapeHTML(e.name)}</option>`).join('');
+    return `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h2>إضافة مهمة جديدة</h2>
+      <div class="field">
+        <label>الجهة</label>
+        <div class="cat-toggle">
+          <div class="cat-opt sel-finance" data-cat="finance">اللجنة المالية</div>
+          <div class="cat-opt" data-cat="bloc">كتلة الصادقون</div>
+          <div class="cat-opt" data-cat="office">مكتب النائب</div>
+        </div>
+      </div>
+      <div class="field"><label>عنوان المهمة</label><input id="f-title" type="text" placeholder="مثال: تجهيز محضر جلسة اللجنة"></div>
+      <div class="field"><label>تفاصيل (اختياري)</label><textarea id="f-desc" placeholder="وصف مختصر للمهمة..."></textarea></div>
+      <div class="field"><label>إسناد إلى موظف (اختياري)</label><select id="f-emp"><option value="">بدون إسناد</option>${empOptions}</select></div>
+      <div class="field">
+        <label>إرفاق ملف (اختياري)</label>
+        <label class="file-btn" for="f-file" id="f-file-label">${'اختيار ملف من الجهاز'}</label>
+        <input type="file" id="f-file" style="display:none">
+        <div class="field-sub" id="f-file-info">بحد أقصى 600 كيلوبايت للملف الواحد (صورة، PDF، مستند...)</div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" data-action="close">إلغاء</button>
+        <button class="btn btn-primary" data-action="saveTask">حفظ المهمة</button>
+      </div>
+    </div>`;
+  }
+
+  function empSheetHTML(){
+    const su = genUsername(), sp = genPassword();
+    return `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h2>إضافة موظف</h2>
+      <div class="field"><label>الاسم</label><input id="e-name" type="text" placeholder="اسم الموظف"></div>
+      <div class="field"><label>المسمى الوظيفي (اختياري)</label><input id="e-role" type="text" placeholder="مثال: مساعد إداري"></div>
+      <div class="divider"></div>
+      <div class="field"><label>اسم المستخدم لحساب الموظف</label><input id="e-user" type="text" value="${su}"><div class="field-sub">يمكن تعديله قبل الحفظ</div></div>
+      <div class="field"><label>كلمة المرور المبدئية</label><input id="e-pass" type="text" value="${sp}"><div class="field-sub">شارك هذه البيانات مع الموظف لتسجيل الدخول لحسابه الخاص</div></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" data-action="close">إلغاء</button>
+        <button class="btn btn-primary" data-action="saveEmp">حفظ الموظف</button>
+      </div>
+    </div>`;
+  }
+
+  function agendaSheetHTML(){
+    const typeOptions = Object.keys(AGENDA_TYPES).map(k=>`<option value="${k}">${AGENDA_TYPES[k]}</option>`).join('');
+    return `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h2>إضافة موعد إلى الجدول اليومي</h2>
+      <div class="field" style="display:flex; gap:10px;">
+        <div style="flex:1;"><label>التاريخ</label><input id="a-date" type="date" value="${todayStr()}"></div>
+        <div style="flex:1;"><label>الوقت</label><input id="a-time" type="time" value="${nowTimeStr()}"></div>
+      </div>
+      <div class="field">
+        <label>الجهة</label>
+        <div class="cat-toggle">
+          <div class="cat-opt sel-finance" data-cat="finance">اللجنة المالية</div>
+          <div class="cat-opt" data-cat="bloc">كتلة الصادقون</div>
+          <div class="cat-opt" data-cat="office">مكتب النائب</div>
+        </div>
+      </div>
+      <div class="field"><label>النوع</label><select id="a-type">${typeOptions}</select></div>
+      <div class="field"><label>الموضوع / العنوان</label><input id="a-title" type="text" placeholder="مثال: اجتماع لجنة الموازنة"></div>
+      <div class="field"><label>تفاصيل (اختياري)</label><textarea id="a-details" placeholder="مكان الاجتماع، الحضور، ملاحظات..."></textarea></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" data-action="close">إلغاء</button>
+        <button class="btn btn-primary" data-action="saveAgenda">حفظ الموعد</button>
+      </div>
+    </div>`;
+  }
+
+  function bindSheetEvents(type){
+    const overlay = document.getElementById('overlay');
+    overlay.querySelectorAll('[data-action="close"]').forEach(el=>el.addEventListener('click', closeSheet));
+
+    if (type==='task'){
+      let selectedCat = 'finance';
+      let pendingAttachment = null;
+      const opts = overlay.querySelectorAll('.cat-opt');
+      opts.forEach(o=>{
+        o.addEventListener('click', ()=>{
+          selectedCat = o.dataset.cat;
+          opts.forEach(x=>x.classList.remove('sel-finance','sel-bloc','sel-office'));
+          o.classList.add('sel-'+selectedCat);
+        });
+      });
+      const fileInput = overlay.querySelector('#f-file');
+      const fileLabel = overlay.querySelector('#f-file-label');
+      const fileInfo = overlay.querySelector('#f-file-info');
+      fileInput.addEventListener('change', ()=>{
+        const file = fileInput.files[0];
+        if (!file) return;
+        const MAX = 600*1024;
+        if (file.size > MAX){
+          fileInfo.style.color = 'var(--danger)';
+          fileInfo.textContent = 'الملف كبير جداً (الحد الأقصى 600 كيلوبايت). اختر ملفاً أصغر أو اضغطه.';
+          fileInput.value = '';
+          pendingAttachment = null;
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          pendingAttachment = { name: file.name, type: file.type, dataUrl: ev.target.result, size: file.size };
+          fileLabel.textContent = 'تغيير الملف المختار';
+          fileInfo.style.color = 'var(--ok)';
+          fileInfo.textContent = `تم اختيار: ${file.name} (${Math.round(file.size/1024)} كيلوبايت)`;
+        };
+        reader.readAsDataURL(file);
+      });
+      overlay.querySelector('[data-action="saveTask"]').addEventListener('click', ()=>{
+        const title = overlay.querySelector('#f-title').value.trim();
+        if (!title){ overlay.querySelector('#f-title').focus(); return; }
+        const desc = overlay.querySelector('#f-desc').value.trim();
+        const empId = overlay.querySelector('#f-emp').value || null;
+        const taskId = uid();
+        const taskObj = { id: taskId, title, desc, category: selectedCat, employeeId: empId, createdAt: now(), completed:false, completedAt:null, attachment: pendingAttachment || null };
+        closeSheet();
+        col('tasks').doc(taskId).set(taskObj).catch(()=>alert('تعذر حفظ المهمة، تحقق من الاتصال بالإنترنت' + (pendingAttachment ? ' (قد يكون الملف المرفق كبيراً جداً)' : '')));
+      });
+    } else if (type==='agenda'){
+      let selectedCat = 'finance';
+      const opts = overlay.querySelectorAll('.cat-opt');
+      opts.forEach(o=>{
+        o.addEventListener('click', ()=>{
+          selectedCat = o.dataset.cat;
+          opts.forEach(x=>x.classList.remove('sel-finance','sel-bloc','sel-office'));
+          o.classList.add('sel-'+selectedCat);
+        });
+      });
+      overlay.querySelector('[data-action="saveAgenda"]').addEventListener('click', ()=>{
+        const title = overlay.querySelector('#a-title').value.trim();
+        if (!title){ overlay.querySelector('#a-title').focus(); return; }
+        const date = overlay.querySelector('#a-date').value || todayStr();
+        const time = overlay.querySelector('#a-time').value || '00:00';
+        const agendaType = overlay.querySelector('#a-type').value;
+        const details = overlay.querySelector('#a-details').value.trim();
+        const id = uid();
+        const item = {
+          id, date, time, type: agendaType, category: selectedCat, title, details,
+          addedByName: state.session.name, addedByAccountId: state.session.id, createdAt: now()
+        };
+        closeSheet();
+        col('agenda').doc(id).set(item).catch(()=>alert('تعذر حفظ الموعد، تحقق من الاتصال بالإنترنت'));
+      });
+    } else {
+      overlay.querySelector('[data-action="saveEmp"]').addEventListener('click', ()=>{
+        const name = overlay.querySelector('#e-name').value.trim();
+        if (!name){ overlay.querySelector('#e-name').focus(); return; }
+        const role = overlay.querySelector('#e-role').value.trim();
+        const username = overlay.querySelector('#e-user').value.trim();
+        const password = overlay.querySelector('#e-pass').value.trim();
+        if (state.accounts.some(a=>a.username===username)){ alert('اسم المستخدم مستخدم بالفعل، يرجى اختيار اسم آخر'); return; }
+        const empId = uid();
+        const accId = uid();
+        closeSheet();
+        col('employees').doc(empId).set({ id: empId, name, role }).catch(()=>alert('تعذر حفظ بيانات الموظف، تحقق من الاتصال بالإنترنت'));
+        col('accounts').doc(accId).set({ id: accId, username, password, role:'employee', employeeId: empId, name }).catch(()=>alert('تعذر إنشاء حساب الموظف، تحقق من الاتصال بالإنترنت'));
+      });
+    }
+  }
+
+  if (FIREBASE_READY) initFirebase(); else render();
+  setInterval(()=>{ if(state.loaded && state.session) safeRender(); }, 60000);
+})();
+</script>
+</body>
+</html>
