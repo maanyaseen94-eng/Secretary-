@@ -1,7 +1,10 @@
-// ملف: api/extract-details.js
-// يستقبل صورة أو PDF للمراسلة، ويستخرج منه: الجهة، الموضوع، نوع المراسلة
+// ملف: api/draft-reply.js
+// هذا المسار يصبح تلقائياً رابط: https://اسم-مشروعك.vercel.app/api/draft-reply
  
 const Anthropic = require("@anthropic-ai/sdk");
+const {
+  Document, Packer, Paragraph, TextRun, AlignmentType,
+} = require("docx");
  
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -16,55 +19,107 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "الطريقة غير مسموحة" });
   }
  
-  const { fileBase64, mediaType } = req.body || {};
+  const { requestSummary, requestType, entityName, entityTitle } = req.body || {};
  
-  if (!fileBase64 || !mediaType) {
-    return res.status(400).json({ error: "لازم ترفع ملف أول" });
+  if (!requestSummary || requestSummary.trim().length < 3) {
+    return res.status(400).json({ error: "لازم تكتب ملخص الطلب أول" });
   }
  
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  
-  // نحدد نوع المحتوى المرسل لـ Claude حسب نوع الملف (صورة أو PDF)
-  const isPdf = mediaType === "application/pdf";
-  const fileContentBlock = isPdf
-    ? { type: "document", source: { type: "base64", media_type: mediaType, data: fileBase64 } }
-    : { type: "image", source: { type: "base64", media_type: mediaType, data: fileBase64 } };
+  // نطلب من Claude يرجع الأجزاء منفصلة (JSON) بدل نص حر
+  // عشان نتحكم إحنا بالتنسيق والشكل النهائي للكتاب، مو Claude
+  const prompt = `
+انت مساعد إداري بمكتب نائب برلماني عراقي. جهّز محتوى كتاب رسمي بالعربية الفصحى
+رداً على المراسلة التالية، بأسلوب إداري رسمي مناسب للمكاتبات الحكومية العراقية.
  
-  const instructionText = `
-هذي صورة أو مستند لمراسلة رسمية وصلت لمكتب نائب برلماني عراقي.
-اقرأ المحتوى واستخرج المعلومات التالية بدقة، وأرجعها بصيغة JSON فقط بدون أي نص إضافي:
+الجهة المرسل إليها (اسم/صفة): ${entityName || "غير محدد"}
+لقب أو منصب الجهة (وزير، مدير عام، دائرة، مواطن...): ${entityTitle || "غير محدد"}
+نوع المراسلة: ${requestType || "مراسلة عامة"}
+ملخص الطلب: ${requestSummary}
+ 
+أرجع الرد بصيغة JSON فقط بدون أي نص خارج الكائن، بهذا الشكل بالضبط:
  
 {
-  "entityName": "اسم الجهة المرسلة (مثال: وزارة الصحة، أو اسم شخص إذا كانت مراسلة من مواطن)",
-  "entityTitle": "لقب أو منصب الجهة (مثال: السيد الوزير، دائرة، مواطن)",
-  "requestType": "اختر واحد بالضبط من هذي الخيارات: طلب موافقة | استفسار | شكوى | دعوة | (اتركه فارغ لو ما ينطبق)",
-  "requestSummary": "ملخص موجز وواضح لمضمون المراسلة والطلب المذكور فيها، بجملتين لثلاث جمل"
+  "subject": "عنوان موجز لموضوع الكتاب (3-6 كلمات، بدون كلمة الموضوع نفسها)",
+  "greeting": "صيغة المخاطبة الرسمية الكاملة حسب لقب ومنصب الجهة (مثال: السيد الوزير المحترم)",
+  "bodyParagraphs": ["الفقرة الأولى (إشارة لموضوع المراسلة الواردة)", "الفقرة الثانية (الرد أو القرار أو الإجراء بالتفصيل)"],
+  "closing": "صيغة ختامية رسمية مناسبة (مثال: مع التقدير، أو وتفضلوا بقبول فائق الاحترام)"
 }
  
-إذا ما قدرت تقرأ معلومة معينة بوضوح، اكتب لها قيمة فارغة "". لا تضيف أي شرح أو نص خارج كائن JSON.
+لا تضيف أي شرح، مقدمة، أو نص خارج كائن JSON.
 `;
  
   try {
     const response = await client.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: [fileContentBlock, { type: "text", text: instructionText }],
-        },
-      ],
+      max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }],
     });
  
     const rawText = response.content[0].text.trim();
-    // نتأكد نشيل أي علامات ```json``` لو Claude ضافها بالغلط
     const cleanText = rawText.replace(/```json|```/g, "").trim();
-    const extracted = JSON.parse(cleanText);
+    const parts = JSON.parse(cleanText);
  
-    return res.status(200).json(extracted);
+    const draftText = buildPlainTextDraft(parts);
+    const docxBase64 = await buildWordDocument(parts);
+ 
+    return res.status(200).json({ draft: draftText, docxBase64 });
   } catch (error) {
-    console.error("خطأ أثناء استخراج التفاصيل:", error);
-    return res.status(500).json({ error: "صار خطأ أثناء قراءة الملف، حاول مرة ثانية" });
+    console.error("خطأ بالاتصال مع Claude API:", error);
+    return res.status(500).json({ error: "صار خطأ أثناء توليد الرد، حاول مرة ثانية" });
   }
 };
+ 
+// نص مبسط يظهر بمربع المعاينة بالتطبيق
+function buildPlainTextDraft(parts) {
+  return [
+    "العدد: ....................",
+    "التاريخ: ....................",
+    "",
+    `م/ ${parts.subject || ""}`,
+    "",
+    parts.greeting || "",
+    "",
+    ...(parts.bodyParagraphs || []),
+    "",
+    parts.closing || "",
+  ].join("\n");
+}
+ 
+// ملف Word فعلي بتنسيق رسمي: عناصر مهمة بخط عريض، فقرات المتن عادية
+async function buildWordDocument(parts) {
+  const boldLine = (text) =>
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      bidirectional: true,
+      spacing: { after: 200 },
+      children: [new TextRun({ text, font: "Arial", size: 24, bold: true })],
+    });
+ 
+  const normalLine = (text) =>
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      bidirectional: true,
+      spacing: { after: 200 },
+      children: [new TextRun({ text, font: "Arial", size: 24 })],
+    });
+ 
+  const paragraphs = [
+    normalLine("العدد: ...................."),
+    normalLine("التاريخ: ...................."),
+    normalLine(""),
+    boldLine(`م/ ${parts.subject || ""}`),
+    normalLine(""),
+    boldLine(parts.greeting || ""),
+    normalLine(""),
+    ...(parts.bodyParagraphs || []).map((p) => normalLine(p)),
+    normalLine(""),
+    normalLine(parts.closing || ""),
+  ];
+ 
+  const doc = new Document({ sections: [{ children: paragraphs }] });
+  const buffer = await Packer.toBuffer(doc);
+  return buffer.toString("base64");
+}
  
